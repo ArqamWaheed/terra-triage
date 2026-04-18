@@ -3,6 +3,14 @@
 import { revalidatePath } from "next/cache";
 
 import { runFinder, TriageError, synthesizeUnknown } from "@/lib/agents/finder";
+import {
+  dispatchReferral,
+  DispatcherError,
+  type DispatcherErrorCode,
+} from "@/lib/agents/dispatcher";
+import { rankRehabbersWithMemory } from "@/lib/agents/rank-with-memory";
+import { getSession } from "@/lib/auth/client";
+import { getPublicRehabbers } from "@/lib/db/rehabbers";
 import { getServiceSupabase } from "@/lib/db/supabase";
 import type { Case, TriageResult } from "@/lib/db/types";
 
@@ -131,4 +139,106 @@ export async function runTriageForCase(
 
   revalidatePath(`/case/${caseId}`);
   return { ok: true, case: finalRow, cached, degraded };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6 — Auth0 PAR + Resend dispatcher.
+// ---------------------------------------------------------------------------
+const TOP_N = 5;
+
+export type SendReferralResult =
+  | {
+      ok: true;
+      referralId: string;
+      emailProviderId: string;
+      mode: "user-consented" | "m2m-fallback";
+      transport: "resend" | "gmail-smtp";
+      rehabberName: string;
+    }
+  | { ok: false; code: DispatcherErrorCode | "UNAUTHENTICATED" | "BAD_INPUT"; message: string };
+
+export async function sendReferralAction(
+  caseId: string,
+  rehabberId: string,
+): Promise<SendReferralResult> {
+  if (!UUID_RE.test(caseId) || !UUID_RE.test(rehabberId)) {
+    return { ok: false, code: "BAD_INPUT", message: "Invalid ids" };
+  }
+  const session = await getSession();
+  const userSub = session?.user?.sub as string | undefined;
+  if (!userSub) {
+    return {
+      ok: false,
+      code: "UNAUTHENTICATED",
+      message: "Sign in required to dispatch referrals.",
+    };
+  }
+
+  const sb = getServiceSupabase();
+  const { data: row, error: readErr } = await sb
+    .from("cases")
+    .select("*")
+    .eq("id", caseId)
+    .maybeSingle();
+  if (readErr || !row) {
+    return { ok: false, code: "CASE_NOT_FOUND", message: "Case not found." };
+  }
+  const caseRow = row as Case;
+  if (caseRow.status !== "triaged" && caseRow.status !== "referred") {
+    return {
+      ok: false,
+      code: "CASE_INVALID_STATE",
+      message: `Case status is ${caseRow.status}; cannot dispatch.`,
+    };
+  }
+
+  // Re-rank server-side and pin the snapshot for rank_explain. Rejects a
+  // tampered rehabberId not present in our top-N.
+  const rehabbers = await getPublicRehabbers();
+  const ranked = await rankRehabbersWithMemory(
+    {
+      species: caseRow.species,
+      lat: caseRow.lat,
+      lng: caseRow.lng,
+    },
+    rehabbers,
+  );
+  const pick = ranked
+    .slice(0, TOP_N)
+    .find((r) => r.rehabber.id === rehabberId);
+  if (!pick) {
+    return {
+      ok: false,
+      code: "BAD_INPUT",
+      message: "Rehabber is not in the current top-N for this case.",
+    };
+  }
+
+  try {
+    const result = await dispatchReferral({
+      caseId,
+      rehabberId,
+      userSub,
+      rankScore: pick.score,
+      rankExplain: pick.explain as unknown as Record<string, unknown>,
+    });
+    revalidatePath(`/case/${caseId}`);
+    return {
+      ok: true,
+      referralId: result.referralId,
+      emailProviderId: result.emailProviderId,
+      mode: result.mode,
+      transport: result.transport,
+      rehabberName: pick.rehabber.name,
+    };
+  } catch (err) {
+    if (err instanceof DispatcherError) {
+      return { ok: false, code: err.code, message: err.message };
+    }
+    return {
+      ok: false,
+      code: "EMAIL_SEND_FAILED",
+      message: err instanceof Error ? err.message : String(err),
+    };
+  }
 }

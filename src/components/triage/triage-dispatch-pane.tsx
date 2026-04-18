@@ -1,5 +1,6 @@
 import { getPublicRehabbers } from "@/lib/db/rehabbers";
 import { rankRehabbersWithMemory } from "@/lib/agents/rank-with-memory";
+import { auth0Configured, getSession } from "@/lib/auth/client";
 import type { Case } from "@/lib/db/types";
 
 import { RehabberMap } from "./rehabber-map";
@@ -12,8 +13,7 @@ export interface TriageDispatchPaneProps {
 
 /**
  * Server component. Fetches active rehabbers, ranks them against the case,
- * renders the map + top-3 list + (stubbed) referral action. Safe to drop
- * into /case/[id]/page.tsx (owned by Phase 3) once Phase 4 wires it up.
+ * renders the map + top-3 list + Auth0-gated referral action.
  */
 export async function TriageDispatchPane({ caseRow }: TriageDispatchPaneProps) {
   const rehabbers = await getPublicRehabbers();
@@ -22,6 +22,21 @@ export async function TriageDispatchPane({ caseRow }: TriageDispatchPaneProps) {
     rehabbers,
   );
   const top = ranked[0];
+
+  const session = auth0Configured() ? await getSession() : null;
+  const authenticated = Boolean(session?.user);
+  // If Auth0 is configured but the user has no session, we're still going
+  // to use m2m-fallback mode under the hood once they authenticate without
+  // the referral:send scope. For UI surface, we mark the likely mode.
+  const hasUserToken =
+    authenticated &&
+    typeof session?.tokenSet?.scope === "string" &&
+    session.tokenSet.scope.split(/\s+/).includes("referral:send");
+  const authMode: "user-consented" | "m2m-fallback" | null = authenticated
+    ? hasUserToken
+      ? "user-consented"
+      : "m2m-fallback"
+    : null;
 
   return (
     <section
@@ -40,6 +55,9 @@ export async function TriageDispatchPane({ caseRow }: TriageDispatchPaneProps) {
         <SendReferralButton
           caseId={caseRow.id}
           rehabberId={top.rehabber.id}
+          rehabberName={top.rehabber.name}
+          authenticated={authenticated}
+          authMode={authMode}
         />
       ) : null}
     </section>

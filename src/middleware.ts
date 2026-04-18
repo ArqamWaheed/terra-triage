@@ -1,0 +1,19 @@
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
+import { getAuth0 } from "@/lib/auth/client";
+
+export async function middleware(req: NextRequest) {
+  const a = getAuth0();
+  if (!a) return NextResponse.next();
+  // Auth0 middleware owns /api/auth/* (login, logout, callback, profile,
+  // access-token) and also performs silent session refresh on other paths.
+  return a.middleware(req);
+}
+
+export const config = {
+  matcher: [
+    // Run on everything except Next internals + static assets.
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|txt|xml)$).*)",
+  ],
+};
