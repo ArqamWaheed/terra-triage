@@ -9,9 +9,13 @@ Terra Triage — multi-agent wildlife triage web app for DEV Earth Day hackathon
 All planning docs shipped. Next: scaffold Next.js app and start MVP build against the 42h sequence in techdesign.
 
 ## Active Task
-idle
+Phase 2 in progress — split: Phase 2a (Supabase schema/RLS/seed) + Phase 2b (landing page). 2b shipped.
 
 ## Recent Decisions
+- 2026-04-18 — Phase 2b landing shipped: dispatcher-console landing at `/`, `/report` placeholder, `SeverityBadge` (1–5 with lucide icons + text, not color-only), inline-currentColor logo at `public/terra-triage-logo.svg`, metadata + viewport (themeColor `#0a0a0a`). Mobile-first 375px, semantic HTML, `motion-reduce` respected. Build+lint+tsc green.
+- 2026-04-18 — Phase 1 scaffold committed (27f2a87): Next.js 16 App Router + TS + Tailwind v4 + ESLint + src/ via pnpm. shadcn/ui initialised (button/card/badge/input/label/separator). Folder skeleton (`src/lib/{agents,db,auth,email,memory,utils}`, `src/components/triage`, `supabase/{migrations,seed}`) with .gitkeep. `.env.example`, CI workflow, placeholder page. `pnpm build` green.
+- 2026-04-18 — Next.js **16.2.4** pulled (create-next-app latest) — newer than the "Next.js 15" label in the commit message; no action needed, App Router compatible.
+- 2026-04-18 — Scaffolded into temp dir then moved; deleted generated `AGENTS.md` + `CLAUDE.md` to avoid shadowing our `agents.md`. Kept generated `README.md`.
 - 2026-04-18 — Picked Terra Triage from top-5 shortlist; primary=Backboard, secondary=Auth0 for AI Agents.
 - 2026-04-18 — Stack locked: Next.js (App Router, TS) on Vercel free; Supabase Postgres; Gemini free API; MapLibre + OSM; Resend/Gmail SMTP; $0 budget.
 - 2026-04-18 — Agents are server-only TS modules orchestrated by Next.js Server Actions (no LangChain, no queue).
@@ -27,8 +31,8 @@ idle
 - Demo video host: YouTube unlisted vs. Loom free?
 
 ## Next Actions
-1. `npx create-next-app@latest` at repo root (TS, App Router, Tailwind, ESLint).
-2. Supabase project + apply schema from techdesign §4 (cases, rehabbers, referrals, memory_entries, users).
+1. Supabase project + apply schema from techdesign §4 (cases, rehabbers, referrals, memory_entries, users) in `supabase/migrations/0001_init.sql`.
+2. RLS policies + private photo bucket; seed 15 rehabbers in `supabase/seed/rehabbers.sql`.
 3. Auth0 tenant + configure agent identity + `referral:send` scope.
 4. Implement intake flow: photo upload → Gemini triage → triage card (Hour 0–12 of build sequence).
 5. Hour-8 scope-freeze checkpoint: stop adding features, finalize MVP.
