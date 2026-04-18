@@ -1,0 +1,26 @@
+{
+  "name": "Terra Triage — Wildlife Dispatch",
+  "short_name": "Terra Triage",
+  "description": "Snap a photo of an injured wild animal and a multi-agent system identifies the species, triages the injury, and dispatches the referral to the nearest licensed rehabber — in under 60 seconds.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0a0a0a",
+  "background_color": "#0a0a0a",
+  "categories": ["utilities", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}
