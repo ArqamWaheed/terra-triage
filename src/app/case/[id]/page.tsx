@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, Send } from "lucide-react";
+import { ArrowLeft, Check, MapPin, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { SeverityBadge } from "@/components/triage/severity-badge";
+import { TriageDispatchPane } from "@/components/triage/triage-dispatch-pane";
+import { TriageRunning } from "@/components/triage/triage-running";
+import { Badge } from "@/components/ui/badge";
 import { getServiceSupabase } from "@/lib/db/supabase";
-import type { Case } from "@/lib/db/types";
+import type { Case, SafetyAdvice } from "@/lib/db/types";
 
 type Params = Promise<{ id: string }>;
 
-// UUID quick-guard to avoid round-tripping obviously-bogus ids to Postgres.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function CasePage({ params }: { params: Params }) {
@@ -18,15 +20,12 @@ export default async function CasePage({ params }: { params: Params }) {
   const supabase = getServiceSupabase();
   const { data, error } = await supabase
     .from("cases")
-    .select("id,status,lat,lng,photo_path,finder_email,created_at")
+    .select("*")
     .eq("id", id)
     .maybeSingle();
 
   if (error || !data) notFound();
-  const c = data as Pick<
-    Case,
-    "id" | "status" | "lat" | "lng" | "photo_path" | "finder_email" | "created_at"
-  >;
+  const c = data as Case;
 
   let photoUrl: string | null = null;
   if (c.photo_path) {
@@ -35,6 +34,8 @@ export default async function CasePage({ params }: { params: Params }) {
       .createSignedUrl(c.photo_path, 60);
     photoUrl = signed?.signedUrl ?? null;
   }
+
+  const isPending = c.status === "new";
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-5 py-8">
@@ -46,61 +47,151 @@ export default async function CasePage({ params }: { params: Params }) {
         Home
       </Link>
 
-      <header className="space-y-2">
+      <header className="space-y-1">
         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
           Case {c.id.slice(0, 8)}
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Thanks — your report is in.
+          {isPending ? "Thanks — your report is in." : "Triage complete"}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Triage pending (Phase 4 will fill this).
-        </p>
       </header>
 
-      {photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={photoUrl}
-          alt="Submitted animal"
-          className="aspect-[4/3] w-full rounded-2xl border border-border object-cover"
-        />
-      ) : (
-        <div className="aspect-[4/3] w-full rounded-2xl border border-dashed border-border" />
-      )}
-
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-        <dt className="text-muted-foreground">Status</dt>
-        <dd className="font-medium capitalize">{c.status}</dd>
-
-        <dt className="text-muted-foreground">Location</dt>
-        <dd className="inline-flex items-center gap-1.5">
-          <MapPin className="size-4" aria-hidden="true" />
-          {c.lat.toFixed(5)}, {c.lng.toFixed(5)}
-        </dd>
-
-        <dt className="text-muted-foreground">Species</dt>
-        <dd className="text-muted-foreground">Pending triage</dd>
-
-        <dt className="text-muted-foreground">Severity</dt>
-        <dd className="text-muted-foreground">Pending triage</dd>
-      </dl>
-
-      <Button
-        type="button"
-        size="lg"
-        disabled
-        aria-disabled="true"
-        className="h-12 w-full gap-2"
+      <article
+        aria-labelledby="triage-card-heading"
+        className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm"
       >
-        <Send className="size-4" aria-hidden="true" />
-        Send referral (coming soon)
-      </Button>
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photoUrl}
+            alt={
+              c.species
+                ? `Submitted photo of ${c.species}`
+                : "Submitted animal photo"
+            }
+            className="aspect-video w-full rounded-xl border border-border object-cover"
+          />
+        ) : (
+          <div className="aspect-video w-full rounded-xl border border-dashed border-border" />
+        )}
+
+        {isPending ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Keep this tab open — we&apos;re identifying the animal now.
+            </p>
+            <TriageRunning caseId={c.id} />
+          </>
+        ) : (
+          <TriageCardBody caseRow={c} />
+        )}
+
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <dt>Location</dt>
+          <dd className="inline-flex items-center gap-1.5">
+            <MapPin className="size-3.5" aria-hidden="true" />
+            {c.lat.toFixed(5)}, {c.lng.toFixed(5)}
+          </dd>
+        </dl>
+      </article>
+
+      {!isPending ? (
+        <TriageDispatchPane
+          caseRow={{ id: c.id, lat: c.lat, lng: c.lng, species: c.species }}
+        />
+      ) : null}
 
       <p className="text-xs text-muted-foreground">
         Keep this URL — it&apos;s your only link to this case for now. Phase 6
         will add a tracked, authenticated view.
       </p>
     </main>
+  );
+}
+
+function TriageCardBody({ caseRow }: { caseRow: Case }) {
+  const species = caseRow.species ?? "Unknown animal";
+  const sa: SafetyAdvice | null = caseRow.safety_advice ?? null;
+  const confidence = caseRow.species_confidence ?? 0;
+  const confidencePct = Math.round(confidence * 100);
+  const severity = (caseRow.severity ?? 3) as 1 | 2 | 3 | 4 | 5;
+  const shouldTouch = sa?.touch ?? false;
+
+  const line = sa?.line?.trim() || "When in doubt, call — don't carry.";
+
+  const dos: string[] = [];
+  const donts: string[] = [];
+  if (shouldTouch) {
+    dos.push("Gently contain with gloves or a towel.");
+  } else {
+    donts.push("Do not pick the animal up with bare hands.");
+  }
+  if (sa?.containment) dos.push(sa.containment);
+  if (sa?.transport) dos.push(sa.transport);
+  donts.push("No food or water.");
+  donts.push("No loud noises, music, or pets nearby.");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <h2
+          id="triage-card-heading"
+          className="text-lg font-semibold leading-tight"
+        >
+          {species}
+        </h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <SeverityBadge severity={severity} />
+          <Badge variant="outline" className="font-mono text-[11px]">
+            {confidencePct}% confident
+          </Badge>
+          {species === "Unknown animal" ? (
+            <Badge variant="secondary">Unidentified</Badge>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="rounded-xl bg-primary/5 p-3 text-sm font-medium">
+        {line}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ul className="flex flex-col gap-1.5 rounded-xl border border-border p-3 text-sm">
+          <li className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Do
+          </li>
+          {dos.map((d, i) => (
+            <li key={i} className="flex gap-2">
+              <Check
+                className="mt-0.5 size-4 shrink-0 text-primary"
+                aria-hidden="true"
+              />
+              <span>{d}</span>
+            </li>
+          ))}
+        </ul>
+        <ul className="flex flex-col gap-1.5 rounded-xl border border-border p-3 text-sm">
+          <li className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Don&apos;t
+          </li>
+          {donts.map((d, i) => (
+            <li key={i} className="flex gap-2">
+              <X
+                className="mt-0.5 size-4 shrink-0 text-destructive"
+                aria-hidden="true"
+              />
+              <span>{d}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {species === "Unknown animal" ? (
+        <p className="text-xs text-muted-foreground">
+          Automated identification was low-confidence. The licensed rehabber
+          you&apos;re matched with will confirm species and next steps.
+        </p>
+      ) : null}
+    </div>
   );
 }

@@ -107,11 +107,25 @@ export interface MemoryEntry {
 // Finder agent output — cached in triage_cache and embedded in cases.
 export interface TriageResult {
   species: string;
+  species_common?: string;
   species_confidence: number; // 0..1
   severity: 1 | 2 | 3 | 4 | 5;
   safety_advice: SafetyAdvice;
   should_touch: boolean;
+  uncertainty_notes?: string;
 }
+
+// Runtime wrapper returned by the Finder agent — adds cache + degradation flags.
+export interface TriageRunResult extends TriageResult {
+  cached: boolean;
+  degraded?: "text_only" | "low_confidence";
+}
+
+export type TriageErrorReason =
+  | "missing_api_key"
+  | "gemini_unavailable"
+  | "parse_failed"
+  | "invalid_image";
 
 export interface TriageCacheRow {
   sha: string;

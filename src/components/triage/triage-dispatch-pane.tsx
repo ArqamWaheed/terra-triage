@@ -1,5 +1,5 @@
 import { getPublicRehabbers } from "@/lib/db/rehabbers";
-import { rankRehabbers } from "@/lib/agents/rank";
+import { rankRehabbersWithMemory } from "@/lib/agents/rank-with-memory";
 import type { Case } from "@/lib/db/types";
 
 import { RehabberMap } from "./rehabber-map";
@@ -17,10 +17,9 @@ export interface TriageDispatchPaneProps {
  */
 export async function TriageDispatchPane({ caseRow }: TriageDispatchPaneProps) {
   const rehabbers = await getPublicRehabbers();
-  const ranked = rankRehabbers(
+  const ranked = await rankRehabbersWithMemory(
     { species: caseRow.species, lat: caseRow.lat, lng: caseRow.lng },
     rehabbers,
-    // Phase 7 will pass Backboard-derived signals here.
   );
   const top = ranked[0];
 
