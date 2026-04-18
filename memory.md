@@ -9,9 +9,10 @@ Terra Triage — multi-agent wildlife triage web app for DEV Earth Day hackathon
 All planning docs shipped. Next: scaffold Next.js app and start MVP build against the 42h sequence in techdesign.
 
 ## Active Task
-Phase 2 complete (2a+2b shipped). Next: Phase 3 — Auth0 tenant + intake flow (photo upload → Gemini triage → triage card).
+Phase 3 intake shipped. Next: Phase 4 — Finder agent (Gemini 2.0 Flash) + triage_cache SHA lookup + populate species/severity/safety_advice on `/case/[id]`.
 
 ## Recent Decisions
+- 2026-04-18 — Phase 3 intake shipped: `/report` (client) with hidden `capture="environment"` file input + `navigator.geolocation.getCurrentPosition` (manual lat/lng fallback on deny/error) + optional finder email + client-side downscale (`src/lib/utils/image.ts`, OffscreenCanvas → `<canvas>` fallback, 1600px longest edge @ 0.85 JPEG). Server action `src/app/report/actions.ts` (`createCase`) — zod-validated (`src/lib/schemas/case.ts`), service-role supabase: insert row (`photo_path=''` placeholder) → upload to `photos` bucket at `cases/{id}/original.{ext}` → update row → `redirect('/case/{id}')`; defensive cleanup (delete row/blob on failure). Placeholder `/case/[id]` server component: UUID guard, signed URL (60s TTL), triage fields show "Pending triage". Installed `zod@4.3.6`. React 19.2 `set-state-in-effect` forced initial-state derivation + useMemo for object URL.
 - 2026-04-18 — Phase 2a (DB) shipped: `supabase/migrations/0001_init.sql` (schema + `triage_cache` SHA cache + `rehabbers_public` view + `photos` storage bucket), `0002_rls.sql` (RLS on all tables, anon reads only the view, service-role elsewhere, photos bucket locked to service role), `seed/rehabbers.sql` (15 demo rows, example.org addrs, explicit "do not email" header comment), `src/lib/db/{supabase.ts,types.ts}`, `README-db.md`. Added deps: `@supabase/supabase-js`, `@supabase/ssr`, `server-only`. Skipped `earthdistance` GIST (free tier) — btree on lat/lng + TS haversine per §17 Q8. `cases.updated_at` plpgsql trigger. tsc/lint/build green.
 - 2026-04-18 — Phase 2b landing shipped: dispatcher-console landing at `/`, `/report` placeholder, `SeverityBadge` (1–5 with lucide icons + text, not color-only), inline-currentColor logo at `public/terra-triage-logo.svg`, metadata + viewport (themeColor `#0a0a0a`). Mobile-first 375px, semantic HTML, `motion-reduce` respected. Build+lint+tsc green.
 - 2026-04-18 — Phase 1 scaffold committed (27f2a87): Next.js 16 App Router + TS + Tailwind v4 + ESLint + src/ via pnpm. shadcn/ui initialised (button/card/badge/input/label/separator). Folder skeleton (`src/lib/{agents,db,auth,email,memory,utils}`, `src/components/triage`, `supabase/{migrations,seed}`) with .gitkeep. `.env.example`, CI workflow, placeholder page. `pnpm build` green.
@@ -32,11 +33,10 @@ Phase 2 complete (2a+2b shipped). Next: Phase 3 — Auth0 tenant + intake flow (
 - Demo video host: YouTube unlisted vs. Loom free?
 
 ## Next Actions
-1. Supabase project + apply schema from techdesign §4 (cases, rehabbers, referrals, memory_entries, users) in `supabase/migrations/0001_init.sql`.
-2. RLS policies + private photo bucket; seed 15 rehabbers in `supabase/seed/rehabbers.sql`.
-3. Auth0 tenant + configure agent identity + `referral:send` scope.
-4. Implement intake flow: photo upload → Gemini triage → triage card (Hour 0–12 of build sequence).
-5. Hour-8 scope-freeze checkpoint: stop adding features, finalize MVP.
+1. Phase 4: Finder agent — `src/lib/agents/finder.ts` calling Gemini 2.0 Flash w/ photo + SHA-keyed `triage_cache` lookup; wire into a "Run triage" server action off `/case/[id]` (or auto-run post-upload). Populate species/severity/safety_advice/status='triaged'.
+2. Phase 5: Dispatcher + rehabber ranking (Backboard primary, local_fallback behind same interface).
+3. Phase 6: Auth0 tenant + agent identity + `referral:send` scope; swap placeholder "Send referral" button.
+4. Hour-8 scope-freeze checkpoint: stop adding features, finalize MVP.
 
 ## File Index
 | File | Purpose |
