@@ -315,7 +315,11 @@ export async function dispatchReferral(
       text: email.text,
     });
   } catch (err) {
-    // Leave the referral row with email_provider_id=null for retry.
+    // Roll back the referral row so the UI doesn't show a phantom "awaiting
+    // response" card for a message that never left the server. (The original
+    // retry-friendly design kept the row; in practice it confuses the
+    // finder's case page more than it helps.)
+    await sb.from("referrals").delete().eq("id", referralId);
     if (err instanceof DispatcherError) throw err;
     throw new DispatcherError(
       "EMAIL_SEND_FAILED",
