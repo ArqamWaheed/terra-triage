@@ -123,7 +123,7 @@ export interface TriageRunResult extends TriageResult {
 
 export type TriageErrorReason =
   | "missing_api_key"
-  | "gemini_unavailable"
+  | "vision_unavailable"
   | "parse_failed"
   | "invalid_image";
 

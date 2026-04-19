@@ -2,6 +2,10 @@
 
 Risk items surfaced by grep for `TODO`/`FIXME` in `src/` as of the Phase 9 polish pass. Tracked here so no silent assumptions reach the demo.
 
+## 2025-11 — Swapped Gemini vision for Groq Llama-4 Scout
+
+The Gemini 2.0 Flash free tier returned `limit: 0` for the project our keys were scoped to, so every Finder call was silently falling through to the text-only branch and every `/admin` case showed the hardcoded "Unknown animal / sev 3 / 10%" fallback regardless of photo content. Finder now calls Groq (`meta-llama/llama-4-scout-17b-16e-instruct`) via the OpenAI-compatible `/openai/v1/chat/completions` endpoint. `PROMPT_VERSION` bumped `v1`→`v2` to invalidate old `triage_cache` rows. Env var is `GROQ_API_KEY`; `GEMINI_API_KEY` retired.
+
 ## Backboard endpoint shape unverified
 
 - **File:** `src/lib/memory/backboard.ts:18`

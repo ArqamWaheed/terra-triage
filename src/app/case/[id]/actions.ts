@@ -99,7 +99,7 @@ export async function runTriageForCase(
     // Hard failure — still mark the case 'triaged' with a conservative
     // fallback payload so the dispatcher can rank by proximity only.
     const reason =
-      err instanceof TriageError ? err.reason : "gemini_unavailable";
+      err instanceof TriageError ? err.reason : "vision_unavailable";
     const fallback = synthesizeUnknown();
     patch = toTriagePatch(fallback);
     degraded = `fallback:${reason}`;

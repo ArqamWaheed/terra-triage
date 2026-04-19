@@ -2,11 +2,6 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
-import {
-  GoogleGenerativeAI,
-  type GenerativeModel,
-  type Schema,
-} from "@google/generative-ai";
 import sharp from "sharp";
 
 import { getServiceSupabase } from "@/lib/db/supabase";
@@ -17,39 +12,21 @@ import type {
   TriageRunResult,
 } from "@/lib/db/types";
 
-const MODEL_ID = "gemini-2.0-flash";
-const PROMPT_VERSION = "v1";
+const MODEL_ID = "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+const PROMPT_VERSION = "v2";
 const MAX_EDGE_PX = 768;
 const JPEG_QUALITY = 80;
+const REQUEST_TIMEOUT_MS = 8000;
 const SAFETY_LINE = "When in doubt, call — don't carry.";
 
 const SYSTEM_PROMPT = `You are a wildlife triage assistant for licensed rehabbers.
 You receive ONE photo and GPS coords. Identify the species and grade injury severity.
 Be conservative: if unsure, say so. You are NOT a veterinarian; output triage, not diagnosis.
 Safety advice MUST include: whether to touch, how to contain, how to transport, and the line
-"${SAFETY_LINE}"`;
+"${SAFETY_LINE}"
 
-const RESPONSE_SCHEMA = {
-  type: "object",
-  required: ["species", "confidence", "severity", "safety_advice", "should_touch"],
-  properties: {
-    species: { type: "string" },
-    species_common: { type: "string" },
-    confidence: { type: "number" },
-    severity: { type: "integer" },
-    should_touch: { type: "boolean" },
-    safety_advice: {
-      type: "object",
-      required: ["containment", "transport", "line"],
-      properties: {
-        containment: { type: "string" },
-        transport: { type: "string" },
-        line: { type: "string" },
-      },
-    },
-    uncertainty_notes: { type: "string" },
-  },
-} as const;
+Respond with ONLY a JSON object of this exact shape: {"species": string, "species_common": string?, "confidence": number in [0,1], "severity": integer 1..5, "should_touch": boolean, "safety_advice": {"containment": string, "transport": string, "line": "${SAFETY_LINE}"}, "uncertainty_notes": string?}`;
 
 export class TriageError extends Error {
   reason: TriageErrorReason;
@@ -67,24 +44,22 @@ export interface RunFinderInput {
   lng: number;
 }
 
-function getClient(): GoogleGenerativeAI {
-  const key = process.env.GEMINI_API_KEY;
+function getApiKey(): string {
+  const key = process.env.GROQ_API_KEY;
   if (!key) {
-    throw new TriageError("missing_api_key", "GEMINI_API_KEY is not set");
+    throw new TriageError("vision_unavailable", "GROQ_API_KEY missing");
   }
-  return new GoogleGenerativeAI(key);
+  return key;
 }
 
 function userPrompt(lat: number, lng: number): string {
   return `GPS coords: ${lat.toFixed(5)}, ${lng.toFixed(5)}.
-Return JSON matching the provided schema. Severity grading:
+Return JSON matching the specified shape. Severity grading:
 1 observe · 2 monitor · 3 triage · 4 dispatch · 5 critical.
 confidence must be in [0,1]. Always include the exact line "${SAFETY_LINE}".`;
 }
 
-async function resizeToJpeg(
-  imageBytes: Uint8Array,
-): Promise<Buffer> {
+async function resizeToJpeg(imageBytes: Uint8Array): Promise<Buffer> {
   try {
     return await sharp(imageBytes)
       .rotate()
@@ -167,7 +142,6 @@ function normalise(raw: RawResponse): TriageResult {
     line = SAFETY_LINE;
   }
   if (!line.includes(SAFETY_LINE)) {
-    // Always ensure the canonical line is present (FR-3).
     line = `${line} ${SAFETY_LINE}`.trim();
   }
 
@@ -209,60 +183,89 @@ function applyConfidenceFloor(r: TriageResult): TriageResult {
   return r;
 }
 
-function model(temperature: number): GenerativeModel {
-  return getClient().getGenerativeModel({
-    model: MODEL_ID,
-    generationConfig: {
-      temperature,
-      responseMimeType: "application/json",
-      // The SDK accepts JSON schema via `responseSchema`.
-      responseSchema: RESPONSE_SCHEMA as unknown as Schema,
-    },
-    systemInstruction: SYSTEM_PROMPT,
-  });
+type ChatMessageContent =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+async function postGroq(
+  messages: Array<{ role: "user"; content: ChatMessageContent[] }>,
+  temperature: number,
+): Promise<RawResponse> {
+  const apiKey = getApiKey();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(GROQ_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: MODEL_ID,
+        messages,
+        response_format: { type: "json_object" },
+        max_tokens: 1024,
+        temperature,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const body = (await res.text()).slice(0, 200);
+      throw new TriageError(
+        "vision_unavailable",
+        `Groq ${res.status}: ${body}`,
+      );
+    }
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const content = data.choices?.[0]?.message?.content;
+    if (typeof content !== "string" || !content.trim()) {
+      throw new TriageError("parse_failed", "Groq returned empty content");
+    }
+    return JSON.parse(content) as RawResponse;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-async function callGeminiWithImage(
+async function callVisionWithImage(
   jpeg: Buffer,
   lat: number,
   lng: number,
   temperature: number,
 ): Promise<RawResponse> {
-  const m = model(temperature);
-  const res = await m.generateContent([
-    {
-      inlineData: {
-        data: jpeg.toString("base64"),
-        mimeType: "image/jpeg",
+  const dataUrl = `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+  return postGroq(
+    [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: `${SYSTEM_PROMPT}\n\n${userPrompt(lat, lng)}` },
+          { type: "image_url", image_url: { url: dataUrl } },
+        ],
       },
-    },
-    { text: userPrompt(lat, lng) },
-  ]);
-  const text = res.response.text();
-  return JSON.parse(text) as RawResponse;
+    ],
+    temperature,
+  );
 }
 
-async function callGeminiTextOnly(
+async function callVisionTextOnly(
   lat: number,
   lng: number,
 ): Promise<RawResponse | null> {
-  // Text-only fallback: no image → we can't identify, but we can still emit
-  // the canonical safety-advice + severity=3 scaffold so the UI + dispatcher
-  // keep working. Regex-extract severity keywords if the model returns prose.
-  const m = getClient().getGenerativeModel({
-    model: MODEL_ID,
-    generationConfig: { temperature: 0, responseMimeType: "application/json" },
-    systemInstruction: SYSTEM_PROMPT,
-  });
-  const prompt = `No image was available. Emit a conservative JSON triage for an
-unidentified injured animal at ${lat.toFixed(3)}, ${lng.toFixed(3)} using keys
-{species, confidence, severity, should_touch, safety_advice:{containment,transport,line}, uncertainty_notes}.
+  const prompt = `${SYSTEM_PROMPT}
+
+No image was available. Emit a conservative JSON triage for an
+unidentified injured animal at ${lat.toFixed(3)}, ${lng.toFixed(3)}.
 Set species="Unknown animal", confidence=0.1, severity=3, should_touch=false, and include the literal
 "${SAFETY_LINE}" in safety_advice.line.`;
   try {
-    const res = await m.generateContent(prompt);
-    const text = res.response.text();
-    return JSON.parse(text) as RawResponse;
+    return await postGroq(
+      [{ role: "user", content: [{ type: "text", text: prompt }] }],
+      0,
+    );
   } catch {
     return null;
   }
@@ -294,7 +297,6 @@ export async function runFinder(
 
   const supabase = getServiceSupabase();
 
-  // 1. Cache hit?
   const { data: cached } = await supabase
     .from("triage_cache")
     .select("response")
@@ -305,30 +307,27 @@ export async function runFinder(
     return { ...result, cached: true };
   }
 
-  // 2. Fresh call — with fallback chain.
   let raw: RawResponse | null = null;
   let degraded: TriageRunResult["degraded"];
   try {
-    raw = await callGeminiWithImage(jpeg, input.lat, input.lng, 0.2);
+    raw = await callVisionWithImage(jpeg, input.lat, input.lng, 0.2);
   } catch {
     try {
-      raw = await callGeminiWithImage(jpeg, input.lat, input.lng, 0);
+      raw = await callVisionWithImage(jpeg, input.lat, input.lng, 0);
     } catch {
       raw = null;
     }
   }
 
   if (!raw) {
-    raw = await callGeminiTextOnly(input.lat, input.lng);
+    raw = await callVisionTextOnly(input.lat, input.lng);
     degraded = "text_only";
   }
 
   if (!raw) {
-    // Still nothing — throw so caller renders the "couldn't ID" UI with a
-    // location-only dispatch. We do NOT cache this.
     throw new TriageError(
-      "gemini_unavailable",
-      "All Gemini fallback branches failed",
+      "vision_unavailable",
+      "All Groq fallback branches failed",
     );
   }
 
@@ -338,7 +337,6 @@ export async function runFinder(
     degraded = "low_confidence";
   }
 
-  // 3. Cache the canonical (post-normalisation) response keyed by SHA.
   await supabase
     .from("triage_cache")
     .upsert({ sha, response: result }, { onConflict: "sha" });

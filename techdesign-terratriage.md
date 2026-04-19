@@ -421,7 +421,7 @@ await backboard.memory.upsert({
 | local | `next dev` + Supabase local (optional) | — |
 
 **Secrets (Vercel env):**
-- `GEMINI_API_KEY`
+- `GROQ_API_KEY`
 - `BACKBOARD_API_KEY`
 - `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_AGENT_AUDIENCE`
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE`

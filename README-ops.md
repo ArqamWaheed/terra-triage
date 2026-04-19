@@ -5,7 +5,7 @@ missing. See [`.env.example`](./.env.example) for the full template.
 
 | Var                         | Used in                                                                                | Required? | Failure mode when missing                              |
 | --------------------------- | -------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------ |
-| `GEMINI_API_KEY`            | `src/lib/agents/finder.ts`                                                             | runtime   | Triage falls back to "Unknown animal" synth.           |
+| `GROQ_API_KEY`              | `src/lib/agents/finder.ts`                                                             | required  | Finder cannot identify species; throws TriageError.    |
 | `BACKBOARD_API_KEY`         | `src/lib/memory/backboard.ts` (via `src/lib/memory/index.ts`)                          | optional  | Memory backend switches to local JSONB fallback.       |
 | `BACKBOARD_ASSISTANT_ID`    | `src/lib/memory/backboard.ts` (via `src/lib/memory/index.ts`)                          | optional  | Assistant resolved by name on first call (extra hop).  |
 | `AUTH0_DOMAIN`              | `src/lib/auth/client.ts`, `src/lib/auth/agent-token.ts`                                | runtime   | Auth0 disabled; *Send referral* button hidden / 503.   |
