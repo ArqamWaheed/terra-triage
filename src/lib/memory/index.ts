@@ -112,6 +112,7 @@ export function getMemory(): MemoryBackend {
     const primary = new BackboardBackend({
       apiKey,
       baseUrl: process.env.BACKBOARD_BASE_URL,
+      assistantId: process.env.BACKBOARD_ASSISTANT_ID,
     });
     cached = new FallbackMemory(primary, new LocalMemoryBackend());
   } else {

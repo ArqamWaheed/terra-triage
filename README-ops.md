@@ -7,6 +7,7 @@ missing. See [`.env.example`](./.env.example) for the full template.
 | --------------------------- | -------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------ |
 | `GEMINI_API_KEY`            | `src/lib/agents/finder.ts`                                                             | runtime   | Triage falls back to "Unknown animal" synth.           |
 | `BACKBOARD_API_KEY`         | `src/lib/memory/backboard.ts` (via `src/lib/memory/index.ts`)                          | optional  | Memory backend switches to local JSONB fallback.       |
+| `BACKBOARD_ASSISTANT_ID`    | `src/lib/memory/backboard.ts` (via `src/lib/memory/index.ts`)                          | optional  | Assistant resolved by name on first call (extra hop).  |
 | `AUTH0_DOMAIN`              | `src/lib/auth/client.ts`, `src/lib/auth/agent-token.ts`                                | runtime   | Auth0 disabled; *Send referral* button hidden / 503.   |
 | `AUTH0_CLIENT_ID`           | `src/lib/auth/client.ts`                                                               | runtime   | same as above                                          |
 | `AUTH0_CLIENT_SECRET`       | `src/lib/auth/client.ts`                                                               | runtime   | same as above                                          |
