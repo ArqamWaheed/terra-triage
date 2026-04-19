@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { sendReferralAction } from "@/app/case/[id]/actions";
 import { AuthModeBadge } from "@/components/auth/auth-mode-badge";
@@ -26,11 +26,18 @@ type UiStatus =
     }
   | { kind: "err"; msg: string };
 
-function consentHref(caseId: string, rehabberName?: string): string {
+function consentHref(
+  caseId: string,
+  rehabberId: string,
+  rehabberName?: string,
+): string {
   const ctx = rehabberName
     ? `Email referral to ${rehabberName}`
     : "Dispatch wildlife referral";
-  const returnTo = `/case/${caseId}`;
+  // Include ?autosend=<rehabberId> so the button component can auto-trigger
+  // the server action once Auth0 bounces the user back, instead of making
+  // them click "Send referral" a second time.
+  const returnTo = `/case/${caseId}?autosend=${encodeURIComponent(rehabberId)}`;
   const qs = new URLSearchParams({ returnTo, ctx });
   return `/api/auth/consent?${qs.toString()}`;
 }
@@ -45,25 +52,7 @@ export function SendReferralButton({
 }: SendReferralButtonProps) {
   const [pending, start] = useTransition();
   const [status, setStatus] = useState<UiStatus>({ kind: "idle" });
-
-  if (!authenticated) {
-    const href = consentHref(caseId, rehabberName);
-    return (
-      <div className={className}>
-        <a
-          href={href}
-          className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-        >
-          Send referral - sign in with Auth0
-        </a>
-        <p className="mt-2 text-xs text-muted-foreground">
-          You&apos;ll be asked to grant the{" "}
-          <code className="rounded bg-muted px-1 py-0.5">referral:send</code>{" "}
-          scope before we email the rehabber on your behalf.
-        </p>
-      </div>
-    );
-  }
+  const autosentRef = useRef(false);
 
   const submit = () => {
     setStatus({ kind: "idle" });
@@ -84,6 +73,47 @@ export function SendReferralButton({
       }
     });
   };
+
+  // Auto-dispatch after an Auth0 round-trip: the consent link appends
+  // `?autosend=<rehabberId>` to returnTo so we know which card triggered the
+  // flow. Runs once per mount; strips the query param afterwards so a refresh
+  // doesn't re-fire. Deferred via queueMicrotask to avoid the setState-in-
+  // effect lint rule (React 19 flags synchronous setState inside effects).
+  useEffect(() => {
+    if (!authenticated || autosentRef.current) return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("autosend") !== rehabberId) return;
+    autosentRef.current = true;
+    params.delete("autosend");
+    const newQs = params.toString();
+    const newUrl =
+      window.location.pathname +
+      (newQs ? `?${newQs}` : "") +
+      window.location.hash;
+    window.history.replaceState(null, "", newUrl);
+    queueMicrotask(() => submit());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated, rehabberId]);
+
+  if (!authenticated) {
+    const href = consentHref(caseId, rehabberId, rehabberName);
+    return (
+      <div className={className}>
+        <a
+          href={href}
+          className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
+        >
+          Send referral - sign in with Auth0
+        </a>
+        <p className="mt-2 text-xs text-muted-foreground">
+          You&apos;ll be asked to grant the{" "}
+          <code className="rounded bg-muted px-1 py-0.5">referral:send</code>{" "}
+          scope before we email the rehabber on your behalf.
+        </p>
+      </div>
+    );
+  }
 
   const previewMode: "user-consented" | "m2m-fallback" =
     authMode === "m2m-fallback" ? "m2m-fallback" : "user-consented";
