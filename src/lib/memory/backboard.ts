@@ -31,7 +31,8 @@ const ASSISTANT_PROMPT =
   "(capacity, acceptance rate, taxa scope, response latency, geo accuracy) " +
   "and return them verbatim when queried. Never invent values.";
 const CONTENT_PREFIX = "TERRA_SIGNAL";
-const SEARCH_LIMIT = 30;
+const LIST_PAGE_SIZE = 100;
+const LIST_MAX_PAGES = 5;
 
 export interface BackboardBackendOptions {
   apiKey: string;
@@ -53,14 +54,15 @@ interface AddMemoryResponse {
   content: string;
 }
 
-interface SearchMemoriesResponse {
+interface ListMemoriesResponse {
   memories: Array<{
     id: string;
     content: string;
-    score?: number;
     created_at?: string;
     metadata?: Record<string, unknown> | null;
   }>;
+  page?: number;
+  page_size?: number;
   total_count?: number;
 }
 
@@ -119,34 +121,47 @@ export class BackboardBackend implements MemoryBackend {
   async query(ids: string[]): Promise<SignalsByRehabber> {
     if (ids.length === 0) return {};
     const assistantId = await this.resolveAssistant();
+    const wanted = new Set(ids);
     const out: SignalsByRehabber = Object.fromEntries(
       ids.map((id) => [id, {} as Signals]),
     );
 
-    // Parallel semantic searches, one per rehabber. Small N (≤15) keeps this
-    // well within rate budgets and under ~2s wall-clock.
-    await Promise.all(
-      ids.map(async (id) => {
-        const res = await this.fetchJson<SearchMemoriesResponse>(
-          `/api/assistants/${assistantId}/memories/search`,
-          { query: `${CONTENT_PREFIX} rehabber=${id}`, limit: SEARCH_LIMIT },
-        );
-        // Newest-first so the first match per key wins.
-        const memories = [...(res.memories ?? [])].sort((a, b) =>
-          (b.created_at ?? "").localeCompare(a.created_at ?? ""),
-        );
-        const bucket = out[id];
-        const seen = new Set<MemoryKey>();
-        for (const m of memories) {
-          const decoded = decodeContent(m.content);
-          if (!decoded) continue;
-          if (decoded.rehabberId !== id) continue;
-          if (seen.has(decoded.key)) continue;
-          seen.add(decoded.key);
-          (bucket as Record<string, unknown>)[decoded.key] = decoded.value;
-        }
-      }),
+    // One paginated list read — *not* per-rehabber semantic search — keeps
+    // the cost flat regardless of rehabber count. Semantic search is the
+    // expensive op on Backboard; list is a cheap scan. For our scale
+    // (≤ ~75 live memories) a single page covers everything.
+    const collected: ListMemoriesResponse["memories"] = [];
+    for (let page = 1; page <= LIST_MAX_PAGES; page++) {
+      const res = await this.fetchJson<ListMemoriesResponse>(
+        `/api/assistants/${assistantId}/memories?page=${page}&page_size=${LIST_PAGE_SIZE}`,
+        undefined,
+        "GET",
+      );
+      const batch = res.memories ?? [];
+      collected.push(...batch);
+      if (batch.length < LIST_PAGE_SIZE) break;
+    }
+
+    // Newest-first so the first match per (rehabber_id, key) wins.
+    collected.sort((a, b) =>
+      (b.created_at ?? "").localeCompare(a.created_at ?? ""),
     );
+
+    const seen = new Map<string, Set<MemoryKey>>();
+    for (const m of collected) {
+      const decoded = decodeContent(m.content);
+      if (!decoded) continue;
+      if (!wanted.has(decoded.rehabberId)) continue;
+      let keys = seen.get(decoded.rehabberId);
+      if (!keys) {
+        keys = new Set<MemoryKey>();
+        seen.set(decoded.rehabberId, keys);
+      }
+      if (keys.has(decoded.key)) continue;
+      keys.add(decoded.key);
+      (out[decoded.rehabberId] as Record<string, unknown>)[decoded.key] =
+        decoded.value;
+    }
 
     return out;
   }
