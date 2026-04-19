@@ -6,6 +6,8 @@
 
 Terra Triage collapses the chaotic gap between *"I just found a hurt animal"* and *"a trained rehabber is on the way"* into a single guided 60-second flow. It pairs a Groq-powered vision **Finder agent**, an Auth0-scoped **Dispatcher agent**, and a Backboard-backed **Memory agent** so that every referral outcome improves the next ranking. Most dispatch apps pick the closest rehabber. Terra Triage picks the one who will actually accept, because Backboard remembers who said no last time.
 
+Nationwide coverage is seeded (250 licensed rehabbers, 5 per US state, fictional `.example.org` contacts using the NANPA 555-01xx block reserved for fiction) so the ranker has something to rank from day one. Every ranked card includes a one-tap `tel:` call button for when the finder would rather skip the email and dial directly.
+
 ## Architecture
 
 ```
@@ -111,9 +113,16 @@ Environment variables are documented in [`.env.example`](.env.example). Supabase
 ## Demo flow
 
 1. `/report` → take a photo, grant location, upload → Finder agent (Groq) returns a triage card with species + severity + do/don't.
-2. Tap **Send referral** → Auth0 consent modal (`referral:send`) → Dispatcher fires a scoped token exchange → Resend delivers the intake email.
-3. Rehabber clicks the magic-link in the email → `/rehabber/outcome/[token]` → picks *accept / decline / transferred / closed* → Memory agent upserts the signal into Backboard.
-4. Submit a second, same-species case. Visit `/admin/cases` → the **re-ranked now (memory effect)** panel shows the top rehabber has shifted. Backboard did that.
+2. The ranked list of rehabbers is rendered with Backboard-aware scores and a one-tap `tel:` call button per card.
+3. Tap **Send referral** → Auth0 consent modal (`referral:send`) → Dispatcher fires a scoped token exchange → Resend delivers the intake email (or `sent_emails_log` captures it when `DEMO_MODE=1`).
+4. Rehabber clicks the magic-link in the email → `/rehabber/outcome/[token]` → picks *accept / decline / transferred / closed* → Memory agent upserts the signal into Backboard.
+5. Submit a second, same-species case. Visit `/admin/cases` → the **re-ranked now (memory effect)** panel shows the top rehabber has shifted. Backboard did that.
+
+## Demo mode
+
+Set `DEMO_MODE=1` and the dispatcher short-circuits Resend/Gmail entirely. The rendered email is written to `sent_emails_log` and surfaced at `/demo/inbox/<referral_id>` (admin-basic-auth gated, same credentials as `/admin/*`). The success toast grows a **View captured email** link so live walkthroughs never send mail to the fictional `.example.org` rehabbers.
+
+Prefer recording a real Resend delivery? Unset `DEMO_MODE` and set `DEMO_REDIRECT_TO=your@inbox` instead. The payload goes over the wire for real, but every recipient is rewritten to your address and the subject is prefixed `[DEMO -> original@rehabber]` so the reroute is obvious on screen.
 
 ## Status
 

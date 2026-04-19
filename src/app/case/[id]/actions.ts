@@ -153,7 +153,7 @@ export type SendReferralResult =
       emailProviderId: string;
       mode: "user-consented" | "m2m-fallback";
       authMode: "user-consented" | "m2m-fallback";
-      transport: "resend" | "gmail-smtp";
+      transport: "resend" | "gmail-smtp" | "demo-capture";
       rehabberName: string;
     }
   | { ok: false; code: DispatcherErrorCode | "UNAUTHENTICATED" | "BAD_INPUT"; message: string };

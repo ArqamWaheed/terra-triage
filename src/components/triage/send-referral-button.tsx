@@ -22,6 +22,7 @@ type UiStatus =
       msg: string;
       authMode: "user-consented" | "m2m-fallback";
       transport: string;
+      referralId: string;
     }
   | { kind: "err"; msg: string };
 
@@ -76,6 +77,7 @@ export function SendReferralButton({
           } · message id ${res.emailProviderId}`,
           authMode: res.authMode,
           transport: res.transport,
+          referralId: res.referralId,
         });
       } else {
         setStatus({ kind: "err", msg: `${res.code}: ${res.message}` });
@@ -106,6 +108,16 @@ export function SendReferralButton({
             <span className="ml-2 text-muted-foreground">
               · via {status.transport}
             </span>
+            {status.transport === "demo-capture" ? (
+              <a
+                href={`/demo/inbox/${status.referralId}`}
+                className="ml-2 underline"
+                target="_blank"
+                rel="noopener"
+              >
+                View captured email →
+              </a>
+            ) : null}
           </p>
           <AuthModeBadge mode={status.authMode} />
         </div>

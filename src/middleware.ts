@@ -5,9 +5,11 @@ import { checkAdminBasicAuth } from "@/lib/auth/admin-basic-auth";
 import { getAuth0 } from "@/lib/auth/client";
 
 export async function middleware(req: NextRequest) {
-  // Admin ops panel: basic auth, independent of Auth0. Composes by short-
-  // circuiting before the Auth0 middleware runs.
-  if (req.nextUrl.pathname.startsWith("/admin")) {
+  // Admin ops panel + demo inbox: basic auth, independent of Auth0.
+  if (
+    req.nextUrl.pathname.startsWith("/admin") ||
+    req.nextUrl.pathname.startsWith("/demo/inbox")
+  ) {
     const blocked = checkAdminBasicAuth(req);
     if (blocked) return blocked;
     return NextResponse.next();

@@ -47,7 +47,7 @@ export interface DispatchReferralResult {
    * without breaking existing consumers that read `mode`.
    */
   authMode: AgentAuthMode;
-  transport: "resend" | "gmail-smtp";
+  transport: "resend" | "gmail-smtp" | "demo-capture";
 }
 
 // ---------------------------------------------------------------------------
@@ -132,21 +132,39 @@ async function sendEmail(params: {
   subject: string;
   html: string;
   text: string;
-}): Promise<{ messageId: string; transport: "resend" | "gmail-smtp" }> {
+}): Promise<{
+  messageId: string;
+  transport: "resend" | "gmail-smtp" | "demo-capture";
+}> {
+  // Demo-mode intercept: short-circuit all outbound email and return a fake
+  // message id. The caller still records the referral; we also log the full
+  // rendered email to sent_emails_log via the separate captureDemoEmail call.
+  if (process.env.DEMO_MODE === "1") {
+    return {
+      messageId: `demo_${cryptoRandomUuid()}`,
+      transport: "demo-capture",
+    };
+  }
+  // Optional redirect: keep Resend in the loop but force the recipient to a
+  // single verified inbox (useful for recording live demo video).
+  const redirect = process.env.DEMO_REDIRECT_TO;
+  const effectiveTo = redirect ? redirect : params.to;
+  const effectiveSubject = redirect
+    ? `[DEMO → ${params.to}] ${params.subject}`
+    : params.subject;
   const apiKey = process.env.RESEND_API_KEY;
   if (apiKey) {
     const resend = new Resend(apiKey);
     const res = await resend.emails.send({
       from: params.from,
-      to: params.to,
-      subject: params.subject,
+      to: effectiveTo,
+      subject: effectiveSubject,
       html: params.html,
       text: params.text,
     });
     if (!res.error && res.data?.id) {
       return { messageId: res.data.id, transport: "resend" };
     }
-    // Resend v6 returns { name, message, statusCode } on error.
     const status =
       (res.error as { statusCode?: number } | null)?.statusCode ?? 0;
     if (!RESEND_RETRYABLE.has(status)) {
@@ -155,10 +173,13 @@ async function sendEmail(params: {
         `Resend error: ${res.error?.message ?? "unknown"}`,
       );
     }
-    // fallthrough to Gmail SMTP
   }
   try {
-    const info = await sendViaGmail(params);
+    const info = await sendViaGmail({
+      ...params,
+      to: effectiveTo,
+      subject: effectiveSubject,
+    });
     return { messageId: info.messageId, transport: "gmail-smtp" };
   } catch (err) {
     throw new DispatcherError(
@@ -281,7 +302,10 @@ export async function dispatchReferral(
   });
 
   const from = process.env.RESEND_FROM ?? "onboarding@resend.dev";
-  let sendResult: { messageId: string; transport: "resend" | "gmail-smtp" };
+  let sendResult: {
+    messageId: string;
+    transport: "resend" | "gmail-smtp" | "demo-capture";
+  };
   try {
     sendResult = await sendEmail({
       to: rehabber.email,
@@ -304,6 +328,26 @@ export async function dispatchReferral(
     .from("referrals")
     .update({ email_provider_id: sendResult.messageId })
     .eq("id", referralId);
+
+  // 7a. DEMO_MODE capture: log the fully-rendered email so the /demo/inbox
+  //     page can render it. Non-fatal if the insert fails; the referral is
+  //     still valid and the magic-link still works.
+  if (sendResult.transport === "demo-capture") {
+    const { error: logErr } = await sb.from("sent_emails_log").insert({
+      referral_id: referralId,
+      case_id: c.id,
+      to_email: rehabber.email,
+      to_rehabber_id: rehabber.id,
+      subject: email.subject,
+      body_html: email.html,
+      body_text: email.text,
+      transport: "demo-capture",
+      message_id: sendResult.messageId,
+    });
+    if (logErr) {
+      console.warn("[dispatcher] demo-capture log insert failed:", logErr.message);
+    }
+  }
 
   if (c.status === "triaged") {
     await sb

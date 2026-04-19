@@ -1,5 +1,7 @@
 "use client";
 
+import { Phone } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -66,6 +68,17 @@ export function RankedList({ ranked, className }: RankedListProps) {
                 <Badge variant="outline">
                   Capacity {r.rehabber.capacity}
                 </Badge>
+                {r.rehabber.phone ? (
+                  <a
+                    href={`tel:${r.rehabber.phone.replace(/[^\d+]/g, "")}`}
+                    className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-md border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label={`Call ${r.rehabber.org ?? r.rehabber.name}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Phone className="size-3.5" aria-hidden="true" />
+                    Call
+                  </a>
+                ) : null}
                 <span className="sr-only">{explainTitle(r)}</span>
               </CardContent>
             </Card>
