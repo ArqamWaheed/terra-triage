@@ -9,24 +9,27 @@ Terra Triage — multi-agent wildlife triage web app for DEV Earth Day hackathon
 MVP feature-complete; awaiting Supabase/Auth0/Backboard tenant provisioning + demo recording.
 
 ## Active Task
-Backboard rewrite shipped; remaining: swap Gemini key (quota 0 on current) + full end-to-end demo run.
+Fleet audit pass shipped (copy-hygiene, color-audit, security-audit, feature-ideation). Remaining: deploy + record demo + DEV post.
 
 ## Recent Decisions
 - 2026-04-18 — Historical Summary: Phases 1–9 shipped (scaffold → landing → intake → Finder/Gemini → Leaflet ranking → Auth0 PAR + Resend dispatcher → Backboard+local memory → rehabber outcome magic-link → /admin ops → PWA/README/demo-script polish). See git log for per-phase detail.
 - 2026-04-19 — Tenants live: Supabase (migrations + seed + photos bucket), Auth0 (RWA + API `https://terra-triage.app/agent` + `referral:send` + M2M), Resend (`onboarding@resend.dev`). AUTH0_PAR gated behind env flag (tenant toggle missing); `/api/auth/login` verified 307. Intake at `/report`.
-- 2026-04-19 — Backboard backend rewritten against real API (`app.backboard.io/api`, `X-API-Key`, assistant-scoped memory add/search). Previous `/memory/query|/memory/upsert` endpoints were fictional (DNS didn't resolve). Signals encoded as `TERRA_SIGNAL rehabber=<id> key=<k> value=<json>`; assistant id `0de2d510-...` pinned via `BACKBOARD_ASSISTANT_ID` env (lazy list-or-create fallback). Live add+search verified. Commit 38b4b4e.
-- 2026-04-19 — Copy-hygiene sweep: replaced all user-facing em-dashes (U+2014) with ASCII hyphens across `src/app/**/*.tsx`, `src/components/**/*.tsx`, `src/lib/email/template.tsx`, and user-rendered strings in `src/lib/agents/finder.ts` (incl. `SAFETY_LINE`). Comments/READMEs left intact. No dev leakage (Phase N / TODO / debug console.logs) found in client JSX.
+- 2026-04-19 — Backboard backend rewritten against real API (`app.backboard.io/api`, `X-API-Key`, assistant-scoped memory add/search). Signals encoded as `TERRA_SIGNAL rehabber=<id> key=<k> value=<json>`; assistant id pinned via `BACKBOARD_ASSISTANT_ID`. Commit 38b4b4e. Cost fix (list instead of search) in 96a8adb.
+- 2026-04-19 — Gemini → Groq migration (commit f8928ed): `meta-llama/llama-4-scout-17b-16e-instruct` via OpenAI-compat `chat/completions` with `response_format:{type:"json_object"}`. `PROMPT_VERSION` bumped v1→v2 (invalidates triage_cache). `@google/generative-ai` removed.
+- 2026-04-19 — Copy-hygiene sweep (commit bce9f4c): 24 user-facing em-dashes scrubbed across 11 files; no phase/debug leakage found.
+- 2026-04-19 — Security audit pass (commit 5c568ec): timing-safe admin basic-auth compare, hardened security headers (HSTS/XFO/XCTO/Referrer/Permissions-Policy), stripped upstream response bodies from Groq+Backboard error messages. Accepted risks documented in commit.
+- 2026-04-19 — Feature ideation: `docs/post-mvp-plan.md` written with 3 optional adds (demo-seed button, auth-mode badge, memory audit log — 52 min total) tied to Backboard/Auth0 narratives. Not yet implemented.
 
 ## Open Questions
-- Gemini key quota=0 on current project — user to swap key before demo.
-- Resend domain verification vs. `onboarding@resend.dev` (100/day sandbox → only user's own verified email receives).
+- Resend domain verification vs. `onboarding@resend.dev` (demo workaround: seed rehabbers with your verified address).
 - Demo video host (YouTube unlisted vs. Loom free).
+- Whether to implement post-mvp-plan features (52 min) before recording.
 
 ## Next Actions
-1. Swap `GEMINI_API_KEY` to a project with available quota; re-test `/report` ID.
-2. Full end-to-end smoke: photo → Finder → rank (Backboard memory hit) → referral email → magic-link outcome → `/admin`. Confirm `[memory] fallback to local` no longer logs.
-3. Seed ≥2 demo-region rehabbers within 25km of demo photo coords so ranking shift is visible.
-4. Record 60–90s demo; capture `docs/hero.png` + `docs/architecture.png`.
+1. (Optional, high-ROI) Implement post-mvp-plan features: auth-mode badge (12m), demo-seed button (15m), memory audit log (25m).
+2. Full end-to-end smoke: photo → Finder(Groq) → rank (Backboard memory hit) → referral email → magic-link outcome → `/admin`.
+3. Record 60–90s demo; capture `docs/hero.png` + `docs/architecture.png`.
+4. Deploy to Vercel (free) from `main`.
 5. Publish `docs/dev-post-draft.md` on DEV by T-2h (2026-04-20 04:59 UTC).
 
 ## File Index
