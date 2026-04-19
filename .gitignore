@@ -46,3 +46,5 @@ docs/devpost-notes.md
 # markdown: untracked for hackathon; keep locally, never commit
 *.md
 !.github/**/*.md
+!README.md
+!LICENSE
