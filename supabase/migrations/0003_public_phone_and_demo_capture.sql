@@ -11,7 +11,10 @@
 -- ---------------------------------------------------------------------------
 -- 1. rehabbers_public + phone
 -- ---------------------------------------------------------------------------
-create or replace view rehabbers_public as
+-- Postgres CREATE OR REPLACE VIEW cannot reorder or rename columns, so we
+-- drop and recreate to add `phone` cleanly.
+drop view if exists rehabbers_public;
+create view rehabbers_public as
 select
   id,
   name,
