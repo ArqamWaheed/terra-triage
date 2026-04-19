@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Terra Triage — Wildlife Dispatch",
+  title: "Terra Triage - Wildlife Dispatch",
   description:
-    "Snap a photo of an injured wild animal and a multi-agent system identifies the species, triages the injury, and dispatches the referral to the nearest licensed rehabber — in under 60 seconds.",
+    "Snap a photo of an injured wild animal and a multi-agent system identifies the species, triages the injury, and dispatches the referral to the nearest licensed rehabber in under 60 seconds.",
   manifest: "/manifest.webmanifest",
   applicationName: "Terra Triage",
   appleWebApp: {

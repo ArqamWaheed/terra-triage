@@ -18,7 +18,7 @@ const PROMPT_VERSION = "v2";
 const MAX_EDGE_PX = 768;
 const JPEG_QUALITY = 80;
 const REQUEST_TIMEOUT_MS = 8000;
-const SAFETY_LINE = "When in doubt, call — don't carry.";
+const SAFETY_LINE = "When in doubt, call - don't carry.";
 
 const SYSTEM_PROMPT = `You are a wildlife triage assistant for licensed rehabbers.
 You receive ONE photo and GPS coords. Identify the species and grade injury severity.
@@ -177,7 +177,7 @@ function applyConfidenceFloor(r: TriageResult): TriageResult {
       severity: r.severity >= 1 && r.severity <= 5 ? r.severity : 3,
       uncertainty_notes:
         r.uncertainty_notes ??
-        "Low-confidence identification — rehabber will confirm.",
+        "Low-confidence identification - rehabber will confirm.",
     };
   }
   return r;
@@ -285,7 +285,7 @@ function synthesizeUnknown(): TriageResult {
       line: SAFETY_LINE,
     },
     uncertainty_notes:
-      "Automated identification failed — a licensed rehabber will confirm species and next steps.",
+      "Automated identification failed - a licensed rehabber will confirm species and next steps.",
   });
 }
 

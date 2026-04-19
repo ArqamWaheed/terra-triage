@@ -90,7 +90,7 @@ export function OutcomeForm({
         />
         <p className="text-xs text-muted-foreground">
           If the Finder agent misidentified the animal, enter the correct
-          species — this improves future ranking.
+          species - this improves future ranking.
         </p>
       </div>
 

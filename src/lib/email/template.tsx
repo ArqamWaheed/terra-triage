@@ -53,7 +53,7 @@ export function renderReferralEmail(input: ReferralEmailInput): RenderedEmail {
   const species = caseRow.species ?? "Unknown animal";
   const sev = severityLabel(caseRow.severity);
   const advice = caseRow.safety_advice;
-  const line = advice?.line ?? "When in doubt, call — don't carry.";
+  const line = advice?.line ?? "When in doubt, call - don't carry.";
 
   const subject = `Terra Triage: ${species} · severity ${sev} · near ${lat}, ${lng}`;
 
@@ -104,7 +104,7 @@ export function renderReferralEmail(input: ReferralEmailInput): RenderedEmail {
 </html>`;
 
   const text = [
-    `New wildlife referral — Terra Triage`,
+    `New wildlife referral - Terra Triage`,
     ``,
     `Species: ${species}`,
     `Severity: ${sev}`,

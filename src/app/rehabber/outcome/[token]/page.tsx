@@ -121,7 +121,7 @@ export default async function OutcomePage({
             You submitted <strong>{referral.outcome}</strong> for this case on{" "}
             {referral.outcome_at
               ? new Date(referral.outcome_at).toLocaleString()
-              : "—"}
+              : "-"}
             . This link is single-use and cannot be changed.
           </span>
         }
@@ -140,7 +140,7 @@ export default async function OutcomePage({
         <h1 className="text-xl font-semibold">Wildlife referral</h1>
         <p className="text-sm text-muted-foreground">
           Hi {rehabber.name}
-          {rehabber.org ? ` (${rehabber.org})` : ""} — a finder near you needs
+          {rehabber.org ? ` (${rehabber.org})` : ""} - a finder near you needs
           help.
         </p>
       </header>

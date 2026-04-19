@@ -15,6 +15,7 @@ Backboard rewrite shipped; remaining: swap Gemini key (quota 0 on current) + ful
 - 2026-04-18 — Historical Summary: Phases 1–9 shipped (scaffold → landing → intake → Finder/Gemini → Leaflet ranking → Auth0 PAR + Resend dispatcher → Backboard+local memory → rehabber outcome magic-link → /admin ops → PWA/README/demo-script polish). See git log for per-phase detail.
 - 2026-04-19 — Tenants live: Supabase (migrations + seed + photos bucket), Auth0 (RWA + API `https://terra-triage.app/agent` + `referral:send` + M2M), Resend (`onboarding@resend.dev`). AUTH0_PAR gated behind env flag (tenant toggle missing); `/api/auth/login` verified 307. Intake at `/report`.
 - 2026-04-19 — Backboard backend rewritten against real API (`app.backboard.io/api`, `X-API-Key`, assistant-scoped memory add/search). Previous `/memory/query|/memory/upsert` endpoints were fictional (DNS didn't resolve). Signals encoded as `TERRA_SIGNAL rehabber=<id> key=<k> value=<json>`; assistant id `0de2d510-...` pinned via `BACKBOARD_ASSISTANT_ID` env (lazy list-or-create fallback). Live add+search verified. Commit 38b4b4e.
+- 2026-04-19 — Copy-hygiene sweep: replaced all user-facing em-dashes (U+2014) with ASCII hyphens across `src/app/**/*.tsx`, `src/components/**/*.tsx`, `src/lib/email/template.tsx`, and user-rendered strings in `src/lib/agents/finder.ts` (incl. `SAFETY_LINE`). Comments/READMEs left intact. No dev leakage (Phase N / TODO / debug console.logs) found in client JSX.
 
 ## Open Questions
 - Gemini key quota=0 on current project — user to swap key before demo.

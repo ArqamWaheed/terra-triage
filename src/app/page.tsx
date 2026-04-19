@@ -47,7 +47,7 @@ export default function Home() {
         <p className="text-base leading-relaxed text-foreground/90">
           Snap a photo of an injured wild animal and a multi-agent system identifies
           the species, triages the injury, and dispatches the referral to the nearest
-          licensed rehabber — in under 60 seconds.
+          licensed rehabber in under 60 seconds.
         </p>
 
         <Link href="/report" className="w-full">
@@ -110,7 +110,7 @@ export default function Home() {
       </section>
 
       <footer className="mt-auto border-t border-border pt-5 text-xs text-muted-foreground">
-        Not veterinary advice. When in doubt, call — don&apos;t carry.
+        Not veterinary advice. When in doubt, call - don&apos;t carry.
       </footer>
     </main>
   );

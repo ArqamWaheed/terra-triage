@@ -47,7 +47,7 @@ export function SendReferralButton({
           href={href}
           className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
         >
-          Send referral — sign in with Auth0
+          Send referral - sign in with Auth0
         </a>
         <p className="mt-2 text-xs text-muted-foreground">
           You&apos;ll be asked to grant the{" "}

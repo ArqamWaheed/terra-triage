@@ -81,7 +81,7 @@ export default async function CasePage({ params }: { params: Params }) {
           Case {c.id.slice(0, 8)}
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">
-          {isPending ? "Thanks — your report is in." : "Triage complete"}
+          {isPending ? "Thanks - your report is in." : "Triage complete"}
         </h1>
       </header>
 
@@ -107,7 +107,7 @@ export default async function CasePage({ params }: { params: Params }) {
         {isPending ? (
           <>
             <p className="text-sm text-muted-foreground">
-              Keep this tab open — we&apos;re identifying the animal now.
+              Keep this tab open - we&apos;re identifying the animal now.
             </p>
             <TriageRunning caseId={c.id} />
           </>
@@ -168,7 +168,7 @@ export default async function CasePage({ params }: { params: Params }) {
       ) : null}
 
       <p className="text-xs text-muted-foreground">
-        Keep this URL — it&apos;s your only link to this case for now.
+        Keep this URL - it&apos;s your only link to this case for now.
       </p>
     </main>
   );
@@ -222,7 +222,7 @@ function TriageCardBody({ caseRow }: { caseRow: Case }) {
   const severity = (caseRow.severity ?? 3) as 1 | 2 | 3 | 4 | 5;
   const shouldTouch = sa?.touch ?? false;
 
-  const line = sa?.line?.trim() || "When in doubt, call — don't carry.";
+  const line = sa?.line?.trim() || "When in doubt, call - don't carry.";
 
   const dos: string[] = [];
   const donts: string[] = [];

@@ -248,7 +248,7 @@ async function CaseDetail({ caseId }: { caseId: string }) {
 
       <section>
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Memory snapshot — rehabbers involved
+          Memory snapshot - rehabbers involved
         </h3>
         <pre className="mt-1 overflow-x-auto rounded bg-background p-3 font-mono text-[11px] leading-5 ring-1 ring-foreground/10">
           {JSON.stringify(memSnap, null, 2)}
@@ -338,12 +338,12 @@ export default async function AdminCasesPage({
                           {short}
                         </Link>
                       </td>
-                      <td className="px-3 py-2">{r.species ?? "—"}</td>
-                      <td className="px-3 py-2">{r.severity ?? "—"}</td>
+                      <td className="px-3 py-2">{r.species ?? "-"}</td>
+                      <td className="px-3 py-2">{r.severity ?? "-"}</td>
                       <td className="px-3 py-2">
                         {r.species_confidence != null
                           ? `${Math.round(r.species_confidence * 100)}%`
-                          : "—"}
+                          : "-"}
                       </td>
                       <td className="px-3 py-2">
                         <Badge variant={statusVariant(r.status)}>
@@ -351,21 +351,21 @@ export default async function AdminCasesPage({
                         </Badge>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">
-                        {r.finder_email ?? "—"}
+                        {r.finder_email ?? "-"}
                       </td>
                       <td className="px-3 py-2">{r.referralCount}</td>
                       <td className="px-3 py-2 text-xs">
                         {r.topReferral ? (
                           <>
                             <span>
-                              {r.topReferral.rehabber?.name ?? "—"}
+                              {r.topReferral.rehabber?.name ?? "-"}
                             </span>
                             <span className="ml-1 text-muted-foreground">
                               · {r.topReferral.outcome ?? "pending"}
                             </span>
                           </>
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </td>
                     </tr>,

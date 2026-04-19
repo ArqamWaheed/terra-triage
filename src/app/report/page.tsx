@@ -52,8 +52,8 @@ export default function ReportPage() {
           kind: "manual",
           reason:
             err.code === err.PERMISSION_DENIED
-              ? "Location permission denied — enter coordinates manually."
-              : "Couldn't read location — enter coordinates manually.",
+              ? "Location permission denied - enter coordinates manually."
+              : "Couldn't read location - enter coordinates manually.",
         });
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
