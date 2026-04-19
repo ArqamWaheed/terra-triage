@@ -44,8 +44,10 @@ export function getAuth0(): Auth0Client | null {
     clientSecret: process.env.AUTH0_CLIENT_SECRET!,
     secret: process.env.AUTH0_SECRET!,
     appBaseUrl,
-    // PAR exercises the Auth0-for-Agents primitive we narrate in the demo.
-    pushedAuthorizationRequests: true,
+    // PAR is opt-in per tenant/plan. Enable by setting AUTH0_PAR=1 once the
+    // tenant exposes the toggle; otherwise we fall back to standard OIDC
+    // authorization-code flow and still demo scoped agent tokens via M2M.
+    pushedAuthorizationRequests: process.env.AUTH0_PAR === "1",
     authorizationParameters: {
       scope: "openid profile email offline_access",
       audience: process.env.AUTH0_AGENT_AUDIENCE ?? undefined,
