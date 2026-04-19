@@ -1,44 +1,8 @@
-import { timingSafeEqual } from "node:crypto";
-
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+import { checkAdminBasicAuth } from "@/lib/auth/admin-basic-auth";
 import { getAuth0 } from "@/lib/auth/client";
-
-const BASIC_REALM = 'Basic realm="admin", charset="UTF-8"';
-
-function checkAdminBasicAuth(req: NextRequest): NextResponse | null {
-  const expected = process.env.ADMIN_BASIC_AUTH;
-  if (!expected) {
-    // No credentials configured — lock the admin panel shut rather than
-    // expose it. Returns 503 so it is obvious in ops.
-    return new NextResponse("Admin panel not configured", {
-      status: 503,
-    });
-  }
-  const auth = req.headers.get("authorization") ?? "";
-  if (!auth.toLowerCase().startsWith("basic ")) {
-    return new NextResponse("Auth required", {
-      status: 401,
-      headers: { "WWW-Authenticate": BASIC_REALM },
-    });
-  }
-  let decoded = "";
-  try {
-    decoded = Buffer.from(auth.slice(6).trim(), "base64").toString("utf8");
-  } catch {
-    decoded = "";
-  }
-  const a = Buffer.from(decoded, "utf8");
-  const b = Buffer.from(expected, "utf8");
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    return new NextResponse("Forbidden", {
-      status: 401,
-      headers: { "WWW-Authenticate": BASIC_REALM },
-    });
-  }
-  return null;
-}
 
 export async function middleware(req: NextRequest) {
   // Admin ops panel: basic auth, independent of Auth0. Composes by short-

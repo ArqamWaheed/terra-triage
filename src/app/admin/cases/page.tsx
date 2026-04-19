@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { SeedDemoButton } from "@/components/admin/seed-demo-button";
 import { rankRehabbersWithMemory } from "@/lib/agents/rank-with-memory";
 import { getPublicRehabbers } from "@/lib/db/rehabbers";
 import { getServiceSupabase } from "@/lib/db/supabase";
@@ -290,6 +291,13 @@ export default async function AdminCasesPage({
           Basic-auth gated · /admin/*
         </p>
       </header>
+
+      <Card className="p-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Demo controls
+        </h2>
+        <SeedDemoButton className="mt-2" />
+      </Card>
 
       <Card className="p-0">
         <div className="overflow-x-auto">
