@@ -41,6 +41,12 @@ export interface DispatchReferralResult {
   referralId: string;
   emailProviderId: string;
   mode: AgentAuthMode;
+  /**
+   * Alias for `mode` aligned with the UI/server-action naming. Added so the
+   * plumbing to the success pane can use an explicit, self-describing field
+   * without breaking existing consumers that read `mode`.
+   */
+  authMode: AgentAuthMode;
   transport: "resend" | "gmail-smtp";
 }
 
@@ -311,6 +317,7 @@ export async function dispatchReferral(
     referralId,
     emailProviderId: sendResult.messageId,
     mode: auth.mode,
+    authMode: auth.mode,
     transport: sendResult.transport,
   };
 }

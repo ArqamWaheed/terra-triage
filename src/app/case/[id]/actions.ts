@@ -152,6 +152,7 @@ export type SendReferralResult =
       referralId: string;
       emailProviderId: string;
       mode: "user-consented" | "m2m-fallback";
+      authMode: "user-consented" | "m2m-fallback";
       transport: "resend" | "gmail-smtp";
       rehabberName: string;
     }
@@ -228,6 +229,7 @@ export async function sendReferralAction(
       referralId: result.referralId,
       emailProviderId: result.emailProviderId,
       mode: result.mode,
+      authMode: result.authMode,
       transport: result.transport,
       rehabberName: pick.rehabber.name,
     };

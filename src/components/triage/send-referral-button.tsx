@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { sendReferralAction } from "@/app/case/[id]/actions";
+import { AuthModeBadge } from "@/components/auth/auth-mode-badge";
 import { Button } from "@/components/ui/button";
 
 export interface SendReferralButtonProps {
@@ -16,7 +17,12 @@ export interface SendReferralButtonProps {
 
 type UiStatus =
   | { kind: "idle" }
-  | { kind: "ok"; msg: string; mode: string; transport: string }
+  | {
+      kind: "ok";
+      msg: string;
+      authMode: "user-consented" | "m2m-fallback";
+      transport: string;
+    }
   | { kind: "err"; msg: string };
 
 function consentHref(caseId: string, rehabberName?: string): string {
@@ -68,7 +74,7 @@ export function SendReferralButton({
           msg: `Referral sent${
             rehabberName ? ` to ${rehabberName}` : ""
           } · message id ${res.emailProviderId}`,
-          mode: res.mode,
+          authMode: res.authMode,
           transport: res.transport,
         });
       } else {
@@ -77,14 +83,8 @@ export function SendReferralButton({
     });
   };
 
-  const modeLabel =
-    status.kind === "ok"
-      ? status.mode === "user-consented"
-        ? "User-consented"
-        : "M2M fallback"
-      : authMode === "m2m-fallback"
-        ? "M2M fallback"
-        : "User-consented";
+  const previewMode: "user-consented" | "m2m-fallback" =
+    authMode === "m2m-fallback" ? "m2m-fallback" : "user-consented";
 
   return (
     <div className={className}>
@@ -92,20 +92,23 @@ export function SendReferralButton({
         <Button type="button" onClick={submit} disabled={pending}>
           {pending ? "Sending…" : "Send referral"}
         </Button>
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-          {modeLabel}
-        </span>
+        {status.kind === "idle" || status.kind === "err" ? (
+          <AuthModeBadge mode={previewMode} />
+        ) : null}
       </div>
       {status.kind === "ok" ? (
-        <p
-          role="status"
-          className="mt-2 text-xs text-emerald-700 dark:text-emerald-400"
-        >
-          {status.msg}
-          <span className="ml-2 text-muted-foreground">
-            · via {status.transport}
-          </span>
-        </p>
+        <div className="mt-2 space-y-1">
+          <p
+            role="status"
+            className="text-xs text-emerald-700 dark:text-emerald-400"
+          >
+            {status.msg}
+            <span className="ml-2 text-muted-foreground">
+              · via {status.transport}
+            </span>
+          </p>
+          <AuthModeBadge mode={status.authMode} />
+        </div>
       ) : null}
       {status.kind === "err" ? (
         <p
