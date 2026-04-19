@@ -40,8 +40,9 @@ export interface Rehabber {
   created_at: string;
 }
 
-// Mirror of the rehabbers_public view (no email/phone).
-export type RehabberPublic = Omit<Rehabber, "email" | "phone">;
+// Mirror of the rehabbers_public view (no email; phone exposed per 0003 migration
+// because the seeded phones are all NANPA-reserved 555-01xx fictional numbers).
+export type RehabberPublic = Omit<Rehabber, "email">;
 
 export interface SafetyAdvice {
   touch: boolean;

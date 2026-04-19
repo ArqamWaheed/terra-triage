@@ -14,7 +14,7 @@ export async function getPublicRehabbers(): Promise<RehabberPublic[]> {
   const { data, error } = await sb
     .from("rehabbers_public")
     .select(
-      "id,name,org,lat,lng,species_scope,radius_km,capacity,active,created_at",
+      "id,name,org,phone,lat,lng,species_scope,radius_km,capacity,active,created_at",
     )
     .eq("active", true);
   if (error) throw new Error(`getPublicRehabbers: ${error.message}`);
