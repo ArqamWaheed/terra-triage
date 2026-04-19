@@ -7,7 +7,7 @@ import { TriageDispatchPane } from "@/components/triage/triage-dispatch-pane";
 import { TriageRunning } from "@/components/triage/triage-running";
 import { Badge } from "@/components/ui/badge";
 import { getServiceSupabase } from "@/lib/db/supabase";
-import type { Case, SafetyAdvice } from "@/lib/db/types";
+import type { Case, Referral, SafetyAdvice } from "@/lib/db/types";
 
 type Params = Promise<{ id: string }>;
 
@@ -26,6 +26,35 @@ export default async function CasePage({ params }: { params: Params }) {
 
   if (error || !data) notFound();
   const c = data as Case;
+
+  const { data: referralsData } = await supabase
+    .from("referrals")
+    .select("id, rehabber_id, sent_at, outcome, outcome_at, outcome_notes")
+    .eq("case_id", id)
+    .order("sent_at", { ascending: true });
+  const referrals = (referralsData ?? []) as Array<
+    Pick<
+      Referral,
+      | "id"
+      | "rehabber_id"
+      | "sent_at"
+      | "outcome"
+      | "outcome_at"
+      | "outcome_notes"
+    >
+  >;
+
+  const rehabberIds = Array.from(new Set(referrals.map((r) => r.rehabber_id)));
+  const rehabberMap = new Map<string, { name: string; org: string }>();
+  if (rehabberIds.length > 0) {
+    const { data: rehabRows } = await supabase
+      .from("rehabbers")
+      .select("id, name, org")
+      .in("id", rehabberIds);
+    for (const row of rehabRows ?? []) {
+      rehabberMap.set(row.id, { name: row.name, org: row.org });
+    }
+  }
 
   let photoUrl: string | null = null;
   if (c.photo_path) {
@@ -101,11 +130,87 @@ export default async function CasePage({ params }: { params: Params }) {
         />
       ) : null}
 
+      {referrals.length > 0 ? (
+        <section
+          aria-labelledby="referral-status-heading"
+          className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm"
+        >
+          <h2
+            id="referral-status-heading"
+            className="text-xs uppercase tracking-[0.18em] text-muted-foreground"
+          >
+            Rehabber responses
+          </h2>
+          <ul className="flex flex-col divide-y divide-border">
+            {referrals.map((r) => {
+              const who = rehabberMap.get(r.rehabber_id);
+              return (
+                <li key={r.id} className="flex flex-col gap-1 py-2 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">
+                      {who?.org ?? "Licensed rehabber"}
+                    </span>
+                    <ReferralStatusBadge outcome={r.outcome} />
+                  </div>
+                  {r.outcome_notes ? (
+                    <p className="text-xs text-muted-foreground">
+                      “{r.outcome_notes}”
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            This page updates when you reload it.
+          </p>
+        </section>
+      ) : null}
+
       <p className="text-xs text-muted-foreground">
-        Keep this URL — it&apos;s your only link to this case for now. Phase 6
-        will add a tracked, authenticated view.
+        Keep this URL — it&apos;s your only link to this case for now.
       </p>
     </main>
+  );
+}
+
+function ReferralStatusBadge({
+  outcome,
+}: {
+  outcome: Referral["outcome"];
+}) {
+  if (!outcome) {
+    return (
+      <Badge variant="outline" className="text-[11px]">
+        Awaiting response
+      </Badge>
+    );
+  }
+  if (outcome === "accepted") {
+    return (
+      <Badge className="bg-emerald-600 text-white text-[11px]">
+        <Check className="size-3" aria-hidden="true" /> Accepted
+      </Badge>
+    );
+  }
+  if (outcome === "declined") {
+    return (
+      <Badge variant="outline" className="text-[11px]">
+        <X className="size-3" aria-hidden="true" /> Declined
+      </Badge>
+    );
+  }
+  if (outcome === "transferred") {
+    return (
+      <Badge variant="secondary" className="text-[11px]">
+        Transferred to another rehabber
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary" className="text-[11px]">
+      Closed
+    </Badge>
   );
 }
 

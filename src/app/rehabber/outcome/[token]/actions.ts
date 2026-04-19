@@ -189,5 +189,6 @@ export async function submitOutcome(
   }
 
   revalidatePath("/admin/cases");
+  revalidatePath(`/case/${caseData.id}`);
   redirect(`/rehabber/outcome/${encodeURIComponent(token)}/confirm`);
 }
