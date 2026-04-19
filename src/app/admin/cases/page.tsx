@@ -2,9 +2,11 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { MemorySignalsTimeline } from "@/components/admin/memory-signals-timeline";
 import { SeedDemoButton } from "@/components/admin/seed-demo-button";
 import { rankRehabbersWithMemory } from "@/lib/agents/rank-with-memory";
 import { getPublicRehabbers } from "@/lib/db/rehabbers";
+import { getLatestMemoryEntries } from "@/lib/db/memory-entries";
 import { getServiceSupabase } from "@/lib/db/supabase";
 import type { Case, Referral } from "@/lib/db/types";
 import { getMemory } from "@/lib/memory";
@@ -259,6 +261,35 @@ async function CaseDetail({ caseId }: { caseId: string }) {
   );
 }
 
+async function GlobalMemoryTimeline() {
+  let entries: Awaited<ReturnType<typeof getLatestMemoryEntries>> = [];
+  try {
+    entries = await getLatestMemoryEntries(20);
+  } catch (err) {
+    console.error("[admin] memory timeline load failed", err);
+  }
+
+  const ids = Array.from(new Set(entries.map((e) => e.rehabber_id)));
+  const sb = getServiceSupabase();
+  const { data: rehabbers } = ids.length
+    ? await sb.from("rehabbers").select("id,name,org").in("id", ids)
+    : { data: [] as { id: string; name: string; org: string | null }[] };
+  const labels: Record<string, string> = {};
+  for (const r of rehabbers ?? []) {
+    labels[r.id] = r.org ? `${r.name} · ${r.org}` : r.name;
+  }
+
+  return (
+    <Card className="p-4">
+      <MemorySignalsTimeline
+        entries={entries}
+        rehabberLabels={labels}
+        title="Memory signals - latest 20 across all rehabbers"
+      />
+    </Card>
+  );
+}
+
 export default async function AdminCasesPage({
   searchParams,
 }: {
@@ -419,6 +450,8 @@ export default async function AdminCasesPage({
           Next →
         </Link>
       </nav>
+
+      <GlobalMemoryTimeline />
     </main>
   );
 }
