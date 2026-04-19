@@ -211,10 +211,9 @@ async function postGroq(
       signal: controller.signal,
     });
     if (!res.ok) {
-      const body = (await res.text()).slice(0, 200);
       throw new TriageError(
         "vision_unavailable",
-        `Groq ${res.status}: ${body}`,
+        `Groq returned status ${res.status}`,
       );
     }
     const data = (await res.json()) as {

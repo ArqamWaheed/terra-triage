@@ -256,10 +256,10 @@ export class BackboardBackend implements MemoryBackend {
         cache: "no-store",
       });
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
+        await res.text().catch(() => "");
         throw new MemoryBackendError(
           "backboard",
-          `backboard ${method} ${path} ${res.status}: ${text.slice(0, 200)}`,
+          `backboard ${method} ${path} returned status ${res.status}`,
         );
       }
       return (await res.json()) as T;

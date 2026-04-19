@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -27,7 +29,9 @@ function checkAdminBasicAuth(req: NextRequest): NextResponse | null {
   } catch {
     decoded = "";
   }
-  if (decoded !== expected) {
+  const a = Buffer.from(decoded, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
     return new NextResponse("Forbidden", {
       status: 401,
       headers: { "WWW-Authenticate": BASIC_REALM },
