@@ -41,3 +41,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+docs/devpost-notes.md
+
+# markdown: untracked for hackathon; keep locally, never commit
+*.md
+!.github/**/*.md
